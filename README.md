@@ -1,2 +1,1 @@
-# raytracer
-Config files for my GitHub profile.
+This project is licensed under the MIT License — see the LICENSE file for details.
