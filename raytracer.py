@@ -1,5 +1,5 @@
 """
-Raytracer
+Rasterizer
 Copyright (c) 2025 Leighton Ferguson
 Licensed under the MIT License
 """
