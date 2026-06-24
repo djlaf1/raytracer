@@ -1,6 +1,6 @@
 """
 Rasterizer
-Copyright (c) 2025 Leighton Ferguson
+Copyright (c) 2026 DJLAF1
 Licensed under the MIT License
 """
 
