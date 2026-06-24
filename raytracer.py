@@ -35,13 +35,14 @@ def look_at(eye, target, up):
     u = np.cross(s, f)
     
     mat = np.eye(4, dtype='f4')
+    # Assign the 3x3 rotation component
     mat[0, :3] = s
     mat[1, :3] = u
     mat[2, :3] = -f
-    mat[0, 3] = -np.dot(s, eye)
-    mat[1, 3] = -np.dot(u, eye)
-    mat[2, 3] = np.dot(f, eye)
+    # Set translation vector in the final COLUMN instead of row
+    mat[:3, 3] = [-np.dot(s, eye), -np.dot(u, eye), np.dot(f, eye)]
     return mat
+
 
 # ---------------------------
 # OBJ Loader
@@ -64,67 +65,34 @@ def load_obj(obj_path):
     return vertices, faces
 
 # ---------------------------
-# Menu system
-# ---------------------------
-def obj_menu(screen, clock, obj_folder="OBJ_files"):
-    """Display a simple menu to select OBJ files from a folder."""
-    pygame.font.init()
-    font = pygame.font.SysFont("Arial", 30)
-    
-    obj_files = [f for f in os.listdir(obj_folder) if f.lower().endswith(".obj")]
-    if not obj_files:
-        raise FileNotFoundError(f"No OBJ files found in {obj_folder}")
-    
-    selected_index = 0
-    menu_active = True
-    
-    while menu_active:
-        screen.fill((20, 20, 20))
-        title = font.render("Select a room to load:", True, (255, 255, 255))
-        screen.blit(title, (50, 50))
-        
-        for i, f in enumerate(obj_files):
-            color = (255, 255, 0) if i == selected_index else (200, 200, 200)
-            text_surface = font.render(f"{i+1}. {f}", True, color)
-            screen.blit(text_surface, (100, 150 + i * 40))
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    selected_index = (selected_index - 1) % len(obj_files)
-                elif event.key == pygame.K_DOWN:
-                    selected_index = (selected_index + 1) % len(obj_files)
-                elif event.key == pygame.K_RETURN:
-                    menu_active = False
-        
-        pygame.display.flip()
-        clock.tick(30)
-    
-    return os.path.join(obj_folder, obj_files[selected_index])
-
-# ---------------------------
 # Main program
 # ---------------------------
 def main():
+    print("1. Starting main()")
     pygame.init()
     WIDTH, HEIGHT = 1280, 720
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
-    pygame.display.set_caption("ModernGL GPU Raycaster")
+    pygame.display.set_caption("render")
     clock = pygame.time.Clock()
     
-    # ---------------------------
-    # Menu: select OBJ
-    # ---------------------------
-    obj_path = obj_menu(screen, clock)
+    print("2. Loading OBJ directly...")
+    # Skip menu, load OBJ directly
+    obj_path = "OBJ_files/map.obj"
+    print(f"3. Trying to load: {obj_path}")
     
-    try:
-        vertices, faces = load_obj(obj_path)
-    except Exception as e:
-        print(f"Error loading OBJ: {e}")
-        return
+    if not os.path.exists(obj_path):
+        print(f"ERROR: File not found at {obj_path}")
+        # Try looking in current directory
+        obj_path = "player.obj"
+        if not os.path.exists(obj_path):
+            print(f"ERROR: Also not found at {obj_path}")
+            return
+        else:
+            print(f"Found it at {obj_path}")
+    
+    print("4. Loading OBJ...")
+    vertices, faces = load_obj(obj_path)
+    print(f"5. Loaded {len(vertices)} vertices, {len(faces)//3} triangles")
     
     # ---------------------------
     # ModernGL setup
@@ -165,9 +133,12 @@ def main():
     pygame.mouse.set_visible(False)
     pygame.event.set_grab(True)
     
+    print("6. Entering render loop...")
     running = True
+    frame_count = 0
     while running:
         dt = clock.tick(60) / 1000.0
+        frame_count += 1
         
         # Event handling
         for event in pygame.event.get():
@@ -193,17 +164,26 @@ def main():
         if keys[pygame.K_e]: cam_pos[1] -= MOVE_SPEED
         
         # Render
-        ctx.clear(0.2, 0.25, 0.35)
+        ctx.clear(0.2, 0.25, 0.35)  # Blue-gray background
         aspect = WIDTH / HEIGHT
         proj = perspective(np.radians(60), aspect, 0.1, 100.0)
         target = cam_pos + np.array([np.sin(yaw)*np.cos(pitch), np.sin(pitch), np.cos(yaw)*np.cos(pitch)])
         view = look_at(cam_pos, target, np.array([0,1,0], dtype='f4'))
         MVP = proj @ view
-        prog['MVP'].write(MVP.astype('f4').tobytes())
+        prog['MVP'].write(MVP.T.astype('f4').tobytes())
         vao.render()
         pygame.display.flip()
+        
+        # Print framerate every 60 frames
+        if frame_count % 60 == 0:
+            print(f"Frames: {frame_count}, Position: {cam_pos}")
     
     pygame.quit()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print("CRASHED!")
+        import traceback
+        traceback.print_exc()
